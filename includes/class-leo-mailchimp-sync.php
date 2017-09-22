@@ -156,7 +156,10 @@ class Leo_Mailchimp_Sync {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-
+		$this->loader->add_action( 'init', $plugin_admin, 'test' );
+		$this->loader->add_action( 'updated_user_meta', $plugin_admin, 'update_is_admin', 10, 4 );
+		$this->loader->add_action( 'updated_user_meta', $plugin_admin, 'update_level', 10, 4 );
+		$this->loader->add_action( 'user_register', $plugin_admin, 'add_user', 10, 1 );
 	}
 
 	/**

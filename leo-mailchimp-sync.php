@@ -74,4 +74,7 @@ function run_leo_mailchimp_sync() {
 	$plugin->run();
 
 }
+
+require(__DIR__ . '/vendor/autoload.php');
+
 run_leo_mailchimp_sync();
