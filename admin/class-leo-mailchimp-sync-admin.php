@@ -2,6 +2,7 @@
 
 
 use \DrewM\MailChimp\MailChimp;
+use \DrewM\MailChimp\Batch;
 
 /**
  * The admin-specific functionality of the plugin.
@@ -114,9 +115,9 @@ class Leo_Mailchimp_Sync_Admin {
 
 	}
 	
-	public function add_user($user_id) {
-		$subscriber_hash = $this->mc->subscriberHash('test@example.com');	
+	public function add_user_custom_form($user_id, $is_paid) {		
 		$user = get_user_by('ID', $user_id);
+		$subscriber_hash = $this->mc->subscriberHash($user->user_email);			
 		$result = null;
 
 		$interests = [
@@ -124,14 +125,12 @@ class Leo_Mailchimp_Sync_Admin {
 			$this->interests['courtSmart'] => in_array('s2member_level4', $user->roles),
 			$this->interests['freeUser'] => !in_array('s2member_level4', $user->roles),
 			$this->interests['deleted'] => false
-		];
-
+		];		
 		
-		if(true) {
-			echo '<pre>'; var_dump($user->first_name); echo '</pre>'; exit();
+		if(true) {			
 			$result = $this->mc->post("lists/$this->list_id/members", [
 				'email_address' => $user->user_email,
-				'status'        => 'subscribed',
+				'status' => 'subscribed',
 				'merge_fields' => [
 					'FNAME' => $user->first_name, 
 					'LNAME' => $user->last_name
@@ -143,11 +142,37 @@ class Leo_Mailchimp_Sync_Admin {
 			$result = $this->mc->patch("lists/$this->list_id/members/$subscriber_hash", [			
 				'interests' => $interests
 			]);
-		}
-
-		echo '<pre>'; var_dump($result); echo '</pre>'; exit();
+		}				
 	}
 
+	
+	public function add_user($user_id) {
+
+		// This is only for manual user add in wp dashboard.
+		if(!in_array('administrator', wp_get_current_user()->roles) && $_POST["_wp_http_referer"] != '/wp-admin/user-new.php') {
+			return;
+		}
+
+		$subscriber_hash = $this->mc->subscriberHash('test@example.com');	
+		$user = get_user_by('ID', $user_id);
+
+		$result = null;
+		
+		$result = $this->mc->post("lists/$this->list_id/members", [
+				'email_address' => $user->user_email,
+				'status'        => 'subscribed',
+				'merge_fields' => [
+					'FNAME' => $user->first_name, 
+					'LNAME' => $user->last_name
+				],
+				'interests'    => [
+					$this->interests['admin'] => (bool) get_user_meta($user->ID, '_is_department_head', true),
+					$this->interests['courtSmart'] => in_array('s2member_level4', $user->roles),
+					$this->interests['freeUser'] => !in_array('s2member_level4', $user->roles),
+					$this->interests['deleted'] => false
+				]
+			]);			
+	}
 
 	public function update_membership_level_interests($email, $isPaidUser) {
 		if($isPaidUser) {		
@@ -160,24 +185,20 @@ class Leo_Mailchimp_Sync_Admin {
 	}
 
 	public function delete_user($user_id) {
-		$user = get_user_by('ID', $user_id);
-
+		$user = get_user_by('ID', $user_id);		
 		$this->remove_from_admin_group($user->user_email);
 		$this->remove_from_free_group($user->user_email);
 		$this->remove_from_courtsmart_group($user->user_email);
 		$this->add_to_deleted_group($user->user_email);
 	}
 
-	public function update_is_admin($id, $user_id, $key, $value) {
-		
-		$email = $old->user_email;
-		$userIsAdmin = false;
-		$isFreeUser = false;
+	public function update_is_admin($user_id, $userIsAdmin) {	
+		$email = get_user_by('ID', $user_id)->user_email;
 
 		if($userIsAdmin) {
 			$this->add_to_admin_group($email);
 		} else {
-			$this->remove_from_deleted_group($email);
+			$this->remove_from_admin_group($email);
 		}
 	}
 
@@ -235,7 +256,39 @@ class Leo_Mailchimp_Sync_Admin {
 		$interests[$interest] = $toggle;		
 		$result = $this->mc->patch("lists/$this->list_id/members/$subscriber_hash", [			
 			'interests' => $interests
-		]);
+		]);		
+	}
+
+	public function sync_all_users() {
+		$batchId = 'd2031f48bb';
+
+		if(isset($batchId)) {
+			$batch = $this->mc->new_batch($batch_id);
+ 			$result = $batch->check_status();
+			echo '<pre>'; var_dump($result); echo '</pre>'; exit();
+		}
+
+		$users = get_users();
+		$batch = $this->mc->new_batch();
+
+		foreach($users as $key => $user) {
+			$batch->post(strval($key), "lists/$this->list_id/members", [
+				'email_address' => $user->user_email,
+				'status'        => 'subscribed',
+				'merge_fields' => [
+					'FNAME' => $user->first_name, 
+					'LNAME' => $user->last_name
+				],
+				'interests' => [
+					$this->interests['admin'] => (bool) get_user_meta($user->ID, '_is_department_head', true),
+					$this->interests['courtSmart'] => in_array('s2member_level4', $user->roles),
+					$this->interests['freeUser'] => !in_array('s2member_level4', $user->roles),
+					$this->interests['deleted'] => false
+				]
+			]);
+		}
+
+		$result = $batch->execute();
 
 		echo '<pre>'; var_dump($result); echo '</pre>'; exit();
 	}
