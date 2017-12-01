@@ -252,12 +252,6 @@ class Leo_Mailchimp_Sync_Admin
             setcookie('showSyncingWithMailchimpMessage');
         }
 
-        if (!empty($batchId) && !$job->isComplete()) {
-            setcookie('showJobRunningMessage');
-
-            return;
-        }
-
         $batch = $this->mc->new_batch();
 
         foreach ($users as $key => $user) {
@@ -268,13 +262,11 @@ class Leo_Mailchimp_Sync_Admin
                 update_user_meta($user->ID, $this->subscriber_hash_meta_key, $subscriber_hash);
             }
 
-            $interests = $this->mc->get("lists/$this->list_id/members/$subscriber_hash")['interests'];
-
-            $interests['courtSmart'] = $isActive;
-            $interests['freeUser'] = !$isActive;
-
             $batch->patch(strval($key), "lists/$this->list_id/members/$subscriber_hash", [
-                'interests' => $interests,
+                'interests' => [
+                    $this->interests['courtSmart'] => $isActive,
+                    $this->interests['freeUser'] => !$isActive,
+                ],
             ]);
         }
 

@@ -26,4 +26,9 @@ class MailChimpJob
             'total' => (int) $status['total_operations'],
         ];
     }
+
+    public function printStatus()
+    {
+        printf('<pre>%s</pre>', print_r($this->batch->check_status(), true)) && exit;
+    }
 }
