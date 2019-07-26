@@ -156,7 +156,7 @@ class Leo_Mailchimp_Sync_Admin
         $this->add_to_deleted_group($user->user_email);
     }
 
-    public function update_is_admin($user_id, $userIsAdmin)
+    public function update_is_admin($user_id)
     {
         $email = get_user_by('ID', $user_id)->user_email;
 
